@@ -4,8 +4,11 @@
 #include <ArduinoFFT.h>
 #include <Adafruit_CircuitPlayground.h>
 
-// TODO: Find danger zone threshold value
-// TODO: 
+// TODO #1: Find danger zone threshold value
+// TODO #2: Figure out button configuration
+// TODO #3: Figure out Neopixel config and updateFeedback() func logistics
+// TODO #4: Figure out speaker config
+
 
 
 // put function declarations here:
@@ -78,15 +81,6 @@ double analyzeFFT() {
 
 void updateFeedback(double intensity) {
     // Set the Neopixel brightness and color based on the intensity level
-    if (intensity > 150) {  // Danger zone threshold
-        // If in danger zone, light up at maximum brightness with a red color
-        CircuitPlayground.setBrightness(255); // Max brightness
-        CircuitPlayground.setPixelColor(0, CircuitPlayground.colorWheel(0)); // Red color
-        tone(5, 1000, 500);  // Sound an alarm at 1000 Hz for 500 ms on pin 5
-    } else {
-        // If not in danger zone, light up with a dimmer green color
-        CircuitPlayground.setBrightness(50); // Lower brightness
-        CircuitPlayground.setPixelColor(0, CircuitPlayground.colorWheel(96)); // Green color
-    }
+    //...
 
 }
