@@ -8,8 +8,10 @@
 // TODO #2: Figure out button configuration
 // TODO #3: Figure out Neopixel config and updateFeedback() func logistics
 // TODO #4: Figure out speaker config
-
-
+// TODO #5: Fix analyzeFFT()
+//  - Need to store samples and have a counter to see how many of 
+//   the samples are in the danger zone. Then compare to percentages,
+//   less than 50% not dangerous 60+ dangerous
 
 // put function declarations here:
 void collectData();
@@ -53,7 +55,7 @@ void collectData() {
     vRealX[i] = CircuitPlayground.motionX();
     vRealY[i] = CircuitPlayground.motionY();
     vRealZ[i] = CircuitPlayground.motionZ();
-    delay(1000/samplingFreq);
+    delay(100);
   }
 }
 
