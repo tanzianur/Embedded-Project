@@ -4,12 +4,15 @@
 #include <ArduinoFFT.h>
 #include <Adafruit_CircuitPlayground.h>
 
+// TODO: Find danger zone threshold value
+// TODO: 
+
+
 // put function declarations here:
 void collectData();
 void performFFT(double *vReal, double *vImag);
 double analyzeFFT();
-
-Adafruit_CPlay_NeoPixel pixels(1, 17, NEO_GRB + NEO_KHZ800);
+void updateFeedback(double intensity);
 
 // Constants for FFT
 const uint64_t samples = 128; // Total samples for FFT, can be changed
@@ -26,7 +29,6 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   CircuitPlayground.begin();
-  pixels.begin();
 
   // Initialize all imaginary parts to zero
   for (int i = 0; i < samples; i++) {
@@ -36,6 +38,10 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  collectData();
+  performFFT(vRealX, vImagX);
+  performFFT(vRealY, vImagY);
+  performFFT(vRealZ, vImagZ);
 }
 
 // put function definitions here:
@@ -71,20 +77,16 @@ double analyzeFFT() {
 }
 
 void updateFeedback(double intensity) {
-  // Map the intensity to brightness values
-  int brightness = map(intensity, 0, 200, 0, 255);  // Adjust range based on observed values
+    // Set the Neopixel brightness and color based on the intensity level
+    if (intensity > 150) {  // Danger zone threshold
+        // If in danger zone, light up at maximum brightness with a red color
+        CircuitPlayground.setBrightness(255); // Max brightness
+        CircuitPlayground.setPixelColor(0, CircuitPlayground.colorWheel(0)); // Red color
+        tone(5, 1000, 500);  // Sound an alarm at 1000 Hz for 500 ms on pin 5
+    } else {
+        // If not in danger zone, light up with a dimmer green color
+        CircuitPlayground.setBrightness(50); // Lower brightness
+        CircuitPlayground.setPixelColor(0, CircuitPlayground.colorWheel(96)); // Green color
+    }
 
-  // Set color based on intensity level
-  if (intensity > 150) {  // Danger zone threshold
-    pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red color for high intensity
-    tone(PC6, 1000, 500);  // Sound an alarm at 1000 Hz for 500 ms
-  } else if (intensity > 100) {
-    pixels.setPixelColor(0, pixels.Color(255, 165, 0));  // Orange color for medium intensity
-  } else {
-    pixels.setPixelColor(0, pixels.Color(0, 255, 0));  // Green color for low intensity
-  }
-  
-  pixels.setBrightness(brightness);  // Set the brightness based on the intensity
-  pixels.show();
 }
-// hello 
