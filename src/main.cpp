@@ -14,75 +14,65 @@
 //   less than 50% not dangerous 60+ dangerous
 
 // put function declarations here:
-void collectData();
-void performFFT(double *vReal, double *vImag);
-double analyzeFFT();
-void updateFeedback(double intensity);
+const uint16_t samples = 128; // Total samples for FFT
+const double samplingFreq = 50.0; // Hz
 
-// Constants for FFT
-const uint64_t samples = 128; // Total samples for FFT, can be changed
-const double samplingFreq = 50.0;
-// Frequency resolution = 50 Hz / 128 = 0.39 Hz
-
-// FFT variables
-double vRealX[samples], vImagX[samples]; // x-axis
-double vRealY[samples], vImagY[samples]; // y-axis
-double vRealZ[samples], vImagZ[samples]; // z-axis
-
+// FFT variables for magnitude
+double vReal[samples], vImag[samples];
+unsigned int index = 0;
+unsigned long lastTime = 0;
+unsigned long samplingPeriod = 1000000 / samplingFreq; // Sampling period in microseconds
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(115200);
-  CircuitPlayground.begin();
-
-  // Initialize all imaginary parts to zero
-  for (int i = 0; i < samples; i++) {
-    vImagX[i] = vImagY[i] = vImagZ[i] = 0;
-  }
+    Serial.begin(115200);
+    CircuitPlayground.begin();
+    for (int i = 0; i < samples; i++) {
+        vImag[i] = 0; // Imaginary parts are zero
+    }
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-  collectData();
-  performFFT(vRealX, vImagX);
-  performFFT(vRealY, vImagY);
-  performFFT(vRealZ, vImagZ);
+bool collectSamples() {
+    if (micros() - lastTime >= samplingPeriod) {
+        lastTime = micros();
+        double x = CircuitPlayground.motionX();
+        double y = CircuitPlayground.motionY();
+        double z = CircuitPlayground.motionZ();
+        vReal[index] = sqrt(x * x + y * y + z * z); // Calculate the magnitude and store it
+        index++;
+        if (index >= samples) {
+            index = 0;
+            return true; // Sampling complete
+        }
+    }
+    return false; // Sampling not complete
 }
 
-// put function definitions here:
-void collectData() {
-  for (int i = 0; i < samples; i++) {
-    vRealX[i] = CircuitPlayground.motionX();
-    vRealY[i] = CircuitPlayground.motionY();
-    vRealZ[i] = CircuitPlayground.motionZ();
-    delay(100);
-  }
-}
-
-void performFFT(double *vReal, double *vImag) {
-  // Creating FFT object
-  ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, samples, samplingFreq);
-  FFT.windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-  FFT.compute(FFT_FORWARD);
-  FFT.complexToMagnitude();
+void performFFT() {
+    ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, samples, samplingFreq);
+    FFT.windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+    FFT.compute(FFT_FORWARD);
+    FFT.complexToMagnitude();
 }
 
 double analyzeFFT() {
-  double maxIntensity = 0;
-  for (int axis = 0; axis < 3; axis++) {
-    double *vReal = (axis == 0) ? vRealX : (axis == 1) ? vRealY : vRealZ;
+    double maxIntensity = 0;
     for (int i = 1; i < samples / 2; i++) {
-      double frequency = i * samplingFreq / samples;
-      if (frequency >= 3 && frequency <= 6) {
-        maxIntensity = max(maxIntensity, vReal[i]);
-      }
+        double frequency = i * samplingFreq / samples;
+        if (frequency >= 3 && frequency <= 6) {
+            maxIntensity = max(maxIntensity, vReal[i]);
+        }
     }
-  }
-  return maxIntensity;
+    return maxIntensity;
 }
 
 void updateFeedback(double intensity) {
-    // Set the Neopixel brightness and color based on the intensity level
-    //...
+    // Update feedback logic here based on intensity
+}
 
+void loop() {
+    if (collectSamples()) {
+        performFFT();
+        double intensity = analyzeFFT();
+        updateFeedback(intensity);
+    }
 }
