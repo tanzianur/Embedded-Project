@@ -4,17 +4,11 @@
 #include <ArduinoFFT.h>
 #include <Adafruit_CircuitPlayground.h>
 
-// TODO #1: Implement Neopixel function to display Neopixel when  >= 60% 
-// TODO #2: Implement Alarm sounding logic to sound when >= 60%
-// TODO #3: Figure out danger zone intensity value and replace 'dangerZoneIntensity' values
-// TODO #4: Clean up code, remove serial print lines and implement the correct logic in place of those
-// TODO #5: Test entire code all together, fix any minor bugs / edge cases
-
 const uint16_t samples = 128;
 const double samplingFreq = 50.0;
 const double dangerZoneIntensity = 10.0;
 const int sampleInterval = 2000;  // Interval for each sample set in milliseconds
-const int evaluationPeriod = 5 * 60 * 1000;  // Total period for evaluation in milliseconds
+const int evaluationPeriod = 10 * 1000;  // Total period for evaluation in milliseconds
 double vReal[samples], vImag[samples];
 unsigned int index = 0, sampleCount = 0, dangerCount = 0;
 unsigned long lastTime = 0, lastSampleSetTime = 0;
@@ -26,10 +20,12 @@ void handleButtonPress();
 bool collectSamples();
 void performFFT();
 double analyzeFFT();
+void updateFeedback(double intensity);
 
 void setup() {
     Serial.begin(115200);
     CircuitPlayground.begin();
+    CircuitPlayground.clearPixels(); // Clear the Neopixel to start fresh
     memset(vImag, 0, sizeof(vImag));
     for (int i = 0; i < samples; i++) vImag[i] = 0;
     lastSampleSetTime = millis();
@@ -37,12 +33,11 @@ void setup() {
 
 void loop() {
     handleButtonPress();  // Handle button interactions to start/stop device and toggle alarm
-    
     if (isDeviceRunning) {
         if (collectSamples()) {  // Collects data samples for the FFT
             performFFT();  // Performs FFT on the collected data
             double intensity = analyzeFFT();  // Analyzes the FFT data to calculate maximum intensity
-
+            updateFeedback(intensity);  // Update Neopixel based on the calculated intensity
             // Debug output to monitor intensity values
             Serial.print("Intensity: "); Serial.println(intensity);
 
@@ -63,6 +58,8 @@ void loop() {
                     if (dangerRatio >= 0.6 && isAlarmEnabled) {
                         Serial.println("Alarm sounding: Danger level exceeded");
                         // Additional code to trigger an alarm
+                        CircuitPlayground.playTone(1000, 500);  // Play a 1000 Hz tone for 500 milliseconds
+
                     } else {
                         Serial.println("Not enough danger signals to sound the alarm.");
                     }
@@ -126,5 +123,33 @@ void handleButtonPress() {
         delay(200);
         isAlarmEnabled = !isAlarmEnabled;
         Serial.println(isAlarmEnabled ? "Alarm enabled" : "Alarm disabled");
+    }
+}
+
+void updateFeedback(double intensity) {
+    const int lowThreshold = 5;  // Adjust these values based on your calibration and testing
+    const int highThreshold = 20;
+
+    uint8_t red, green, blue;
+    if (intensity < lowThreshold) {
+        // Green color - low intensity
+        green = map(intensity, 0, lowThreshold, 0, 255);
+        red = 0;
+        blue = 0;
+    } else if (intensity >= lowThreshold && intensity < highThreshold) {
+        // Yellow color - transitioning from green to red
+        green = 255;
+        red = map(intensity, lowThreshold, highThreshold, 0, 255);
+        blue = 0;
+    } else {
+        // Red color - high intensity
+        red = 255;
+        green = map(intensity, highThreshold, 40, 255, 0);  // Assuming max intensity is around 40
+        blue = 0;
+    }
+
+    // Set Neopixel color based on intensity
+    for (int i = 0; i < 10; i++) {  // Assuming you want to set all pixels. Adjust as necessary.
+        CircuitPlayground.setPixelColor(i, red, green, blue);
     }
 }
