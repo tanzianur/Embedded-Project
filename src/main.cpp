@@ -4,30 +4,70 @@
 #include <ArduinoFFT.h>
 #include <Adafruit_CircuitPlayground.h>
 
-// TODO #1: Find danger zone threshold value
-// TODO #2: Figure out button configuration
-// TODO #3: Figure out Neopixel config and updateFeedback() func logistics
-// TODO #4: Figure out speaker config
-// TODO #5: Fix analyzeFFT()
-//  - Need to store samples and have a counter to see how many of 
-//   the samples are in the danger zone. Then compare to percentages,
-//   less than 50% not dangerous 60+ dangerous
-
-// put function declarations here:
-const uint16_t samples = 128; // Total samples for FFT
-const double samplingFreq = 50.0; // Hz
-
-// FFT variables for magnitude
+const uint16_t samples = 128;
+const double samplingFreq = 50.0;
+const double dangerZoneIntensity = 10.0;
+const int sampleInterval = 2000;  // Interval for each sample set in milliseconds
+const int evaluationPeriod = 30 * 1000;  // Total period for evaluation in milliseconds
 double vReal[samples], vImag[samples];
-unsigned int index = 0;
-unsigned long lastTime = 0;
-unsigned long samplingPeriod = 1000000 / samplingFreq; // Sampling period in microseconds
+unsigned int index = 0, sampleCount = 0, dangerCount = 0;
+unsigned long lastTime = 0, lastSampleSetTime = 0;
+unsigned long samplingPeriod = 1000000 / samplingFreq;
+bool isDeviceRunning = false;
+bool isAlarmEnabled = false;
+
+void handleButtonPress();
+bool collectSamples();
+void performFFT();
+double analyzeFFT();
 
 void setup() {
     Serial.begin(115200);
     CircuitPlayground.begin();
-    for (int i = 0; i < samples; i++) {
-        vImag[i] = 0; // Imaginary parts are zero
+    memset(vImag, 0, sizeof(vImag));
+    for (int i = 0; i < samples; i++) vImag[i] = 0;
+    lastSampleSetTime = millis();
+}
+
+void loop() {
+    handleButtonPress();  // Handle button interactions to start/stop device and toggle alarm
+    
+    if (isDeviceRunning) {
+        if (collectSamples()) {  // Collects data samples for the FFT
+            performFFT();  // Performs FFT on the collected data
+            double intensity = analyzeFFT();  // Analyzes the FFT data to calculate maximum intensity
+
+            // Debug output to monitor intensity values
+            Serial.print("Intensity: "); Serial.println(intensity);
+
+            if (millis() - lastSampleSetTime >= sampleInterval) {
+                if (intensity >= dangerZoneIntensity) {
+                    dangerCount++;  // Increment the count of dangerous samples
+                }
+                sampleCount++;  // Increment the total count of samples
+
+                // Debug outputs to check the count of samples and danger occurrences
+                Serial.print("Sample Count: "); Serial.println(sampleCount);
+                Serial.print("Danger Count: "); Serial.println(dangerCount);
+
+                if (millis() - lastSampleSetTime >= evaluationPeriod) {  // Check if the evaluation period is over
+                    double dangerRatio = (double)dangerCount / sampleCount;
+                    Serial.print("Danger Ratio: "); Serial.println(dangerRatio);
+
+                    if (dangerRatio >= 0.6 && isAlarmEnabled) {
+                        Serial.println("Alarm sounding: Danger level exceeded");
+                        // Additional code to trigger an alarm
+                    } else {
+                        Serial.println("Not enough danger signals to sound the alarm.");
+                    }
+
+                    // Reset counters after the evaluation period
+                    dangerCount = 0;
+                    sampleCount = 0;
+                    lastSampleSetTime = millis();
+                }
+            }
+        }
     }
 }
 
@@ -37,17 +77,21 @@ bool collectSamples() {
         double x = CircuitPlayground.motionX();
         double y = CircuitPlayground.motionY();
         double z = CircuitPlayground.motionZ();
-        vReal[index] = sqrt(x * x + y * y + z * z); // Calculate the magnitude and store it
+        if (index == 0) {  // Reset vReal at the start of each new sampling set
+            for (int i = 0; i < samples; i++) vReal[i] = 0;
+        }
+        vReal[index] = sqrt(x * x + y * y + z * z);
         index++;
         if (index >= samples) {
             index = 0;
-            return true; // Sampling complete
+            return true;
         }
     }
-    return false; // Sampling not complete
+    return false;
 }
 
 void performFFT() {
+    memset(vImag, 0, sizeof(vImag));
     ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, samples, samplingFreq);
     FFT.windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
     FFT.compute(FFT_FORWARD);
@@ -65,14 +109,16 @@ double analyzeFFT() {
     return maxIntensity;
 }
 
-void updateFeedback(double intensity) {
-    // Update feedback logic here based on intensity
-}
+void handleButtonPress() {
+    if (CircuitPlayground.leftButton()) {
+        delay(200);  // Debounce delay
+        isDeviceRunning = !isDeviceRunning;
+        Serial.println(isDeviceRunning ? "Device started" : "Device stopped");
+    }
 
-void loop() {
-    if (collectSamples()) {
-        performFFT();
-        double intensity = analyzeFFT();
-        updateFeedback(intensity);
+    if (CircuitPlayground.rightButton()) {
+        delay(200);
+        isAlarmEnabled = !isAlarmEnabled;
+        Serial.println(isAlarmEnabled ? "Alarm enabled" : "Alarm disabled");
     }
 }
