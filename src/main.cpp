@@ -4,6 +4,12 @@
 #include <ArduinoFFT.h>
 #include <Adafruit_CircuitPlayground.h>
 
+// TODO #1: Implement Neopixel function to display Neopixel when  >= 60% 
+// TODO #2: Implement Alarm sounding logic to sound when >= 60%
+// TODO #3: Figure out danger zone intensity value and replace 'dangerZoneIntensity' values
+// TODO #4: Clean up code, remove serial print lines and implement the correct logic in place of those
+// TODO #5: Test entire code all together, fix any minor bugs / edge cases
+
 const uint16_t samples = 128;
 const double samplingFreq = 50.0;
 const double dangerZoneIntensity = 10.0;
