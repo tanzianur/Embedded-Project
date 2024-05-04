@@ -8,7 +8,7 @@ const uint16_t samples = 128;
 const double samplingFreq = 50.0;
 const double dangerZoneIntensity = 10.0;
 const int sampleInterval = 2000;  // Interval for each sample set in milliseconds
-const int evaluationPeriod = 30 * 1000;  // Total period for evaluation in milliseconds
+const int evaluationPeriod = 5 * 60 * 1000;  // Total period for evaluation in milliseconds
 double vReal[samples], vImag[samples];
 unsigned int index = 0, sampleCount = 0, dangerCount = 0;
 unsigned long lastTime = 0, lastSampleSetTime = 0;
