@@ -1,9 +1,12 @@
 // Embedded Challenge Spring 2024: The Tremor Challenge
-// Tanzia Nur, Greyson Diaz, Saad Bensalim, Rayed Khan
+// Tanzia Nur, Greyson Diaz, Saad Bensalim
 
 #include <ArduinoFFT.h>
 #include <Adafruit_CircuitPlayground.h>
 
+// Note: Serial print lines added for visibility and clarity of the performance
+
+// Constants
 const uint16_t samples = 128;
 const double samplingFreq = 50.0;
 const double dangerZoneIntensity = 60.0;
@@ -16,6 +19,7 @@ unsigned long samplingPeriod = 1000000 / samplingFreq;
 bool isDeviceRunning = false;
 bool isAlarmEnabled = false;
 
+// Function declarations
 void handleButtonPress();
 bool collectSamples();
 void performFFT();
@@ -31,6 +35,13 @@ void setup() {
     lastSampleSetTime = millis();
 }
 
+/*
+loop() handles the counting for the samples and "danger".
+All the samples are said to be within 3-6 Hz. If more
+than 60% than of the samples are said to be above the dangerZoneIntensity
+(intensity values) than the alarm will sounds. The samples are being collected
+and performFFT is also being called as well.
+*/
 void loop() {
     handleButtonPress();  // Handle button interactions to start/stop device and toggle alarm
     if (isDeviceRunning) {
@@ -71,13 +82,19 @@ void loop() {
     }
 }
 
+/*
+collectSamples will collect values in both the x,
+y, and z directions and will compute the magnitude
+of these three axises. The vReal is reset at the start
+of each new sampling set.
+*/
 bool collectSamples() {
     if (micros() - lastTime >= samplingPeriod) {
         lastTime = micros();
         double x = CircuitPlayground.motionX();
         double y = CircuitPlayground.motionY();
         double z = CircuitPlayground.motionZ();
-        if (index == 0) {  // Reset vReal at the start of each new sampling set
+        if (index == 0) {
             for (int i = 0; i < samples; i++) vReal[i] = 0;
         }
         vReal[index] = sqrt(x * x + y * y + z * z);
@@ -90,6 +107,11 @@ bool collectSamples() {
     return false;
 }
 
+/*
+performFFT handles the FFT computations for the accelerometer
+values. This function will be called later in loop() for 
+all the values.
+*/
 void performFFT() {
     memset(vImag, 0, sizeof(vImag));
     ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, samples, samplingFreq);
@@ -98,6 +120,12 @@ void performFFT() {
     FFT.complexToMagnitude();
 }
 
+/*
+analyzeFFT handles the conversion from frequency to an intensity
+value that will be used later for our Neopixels. The 
+frequency is compared in the 3 to 6 Hz range since
+that is what is considered to be a Parkinsons tremor.
+*/
 double analyzeFFT() {
     double maxIntensity = 0;
     for (int i = 1; i < samples / 2; i++) {
@@ -109,6 +137,11 @@ double analyzeFFT() {
     return maxIntensity;
 }
 
+/*
+handleButtonPress handles the ON/OFF for the entire device,
+as well as the ON/OFF for the alarm that sounds. There are specific
+sounds that play when each button is pressed.
+*/
 void handleButtonPress() {
     if (CircuitPlayground.leftButton()) {
         delay(200);  // Debounce delay
@@ -128,8 +161,18 @@ void handleButtonPress() {
     }
 }
 
+
+/*
+updateFeedback handles the visual Neopixel based on the tremoring detected
+by the board's accelerometer. The green lights up as a default if there is little
+to no movement, and will progressively light up if movement approaches a "tremor"
+
+Green - Low intensity, "safe"
+Yellow - Medium intensity, "mild" movement -- could be approaching a tremor
+Red - High intensity, extreme movement, falls in 3-6 HZ range -- is a tremor
+*/
 void updateFeedback(double intensity) {
-    const int lowThreshold = 25;  // Adjust these values based on your calibration and testing
+    const int lowThreshold = 25;
     const int highThreshold = 60;
 
     uint8_t red, green, blue;
