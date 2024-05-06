@@ -6,9 +6,9 @@
 
 const uint16_t samples = 128;
 const double samplingFreq = 50.0;
-const double dangerZoneIntensity = 10.0;
+const double dangerZoneIntensity = 60.0;
 const int sampleInterval = 2000;  // Interval for each sample set in milliseconds
-const int evaluationPeriod = 10 * 1000;  // Total period for evaluation in milliseconds
+const int evaluationPeriod = 30 * 1000;  // Total period for evaluation in milliseconds
 double vReal[samples], vImag[samples];
 unsigned int index = 0, sampleCount = 0, dangerCount = 0;
 unsigned long lastTime = 0, lastSampleSetTime = 0;
@@ -54,16 +54,13 @@ void loop() {
                 if (millis() - lastSampleSetTime >= evaluationPeriod) {  // Check if the evaluation period is over
                     double dangerRatio = (double)dangerCount / sampleCount;
                     Serial.print("Danger Ratio: "); Serial.println(dangerRatio);
-
                     if (dangerRatio >= 0.6 && isAlarmEnabled) {
                         Serial.println("Alarm sounding: Danger level exceeded");
                         // Additional code to trigger an alarm
                         CircuitPlayground.playTone(1000, 500);  // Play a 1000 Hz tone for 500 milliseconds
-
                     } else {
                         Serial.println("Not enough danger signals to sound the alarm.");
                     }
-
                     // Reset counters after the evaluation period
                     dangerCount = 0;
                     sampleCount = 0;
@@ -115,41 +112,62 @@ double analyzeFFT() {
 void handleButtonPress() {
     if (CircuitPlayground.leftButton()) {
         delay(200);  // Debounce delay
+        CircuitPlayground.playTone(1000, 500);
+        delay(200);  // Debounce delay
+          // Play a 1000 Hz tone for 500 milliseconds
+        CircuitPlayground.playTone(2000, 500);  // Play a 1000 Hz tone for 500 milliseconds
+        CircuitPlayground.clearPixels(); // Clear the Neopixel to start fresh
         isDeviceRunning = !isDeviceRunning;
         Serial.println(isDeviceRunning ? "Device started" : "Device stopped");
     }
-
     if (CircuitPlayground.rightButton()) {
         delay(200);
+        CircuitPlayground.playTone(2000, 500);
         isAlarmEnabled = !isAlarmEnabled;
         Serial.println(isAlarmEnabled ? "Alarm enabled" : "Alarm disabled");
     }
 }
 
 void updateFeedback(double intensity) {
-    const int lowThreshold = 5;  // Adjust these values based on your calibration and testing
-    const int highThreshold = 20;
+    const int lowThreshold = 25;  // Adjust these values based on your calibration and testing
+    const int highThreshold = 60;
 
     uint8_t red, green, blue;
     if (intensity < lowThreshold) {
         // Green color - low intensity
-        green = map(intensity, 0, lowThreshold, 0, 255);
+        CircuitPlayground.clearPixels();
+        green = 255;
         red = 0;
         blue = 0;
+        CircuitPlayground.setPixelColor(4, 0, green, 0);
+        CircuitPlayground.setPixelColor(5, 0, green, 0);
     } else if (intensity >= lowThreshold && intensity < highThreshold) {
         // Yellow color - transitioning from green to red
+        CircuitPlayground.clearPixels();
         green = 255;
-        red = map(intensity, lowThreshold, highThreshold, 0, 255);
+        red = 255;
         blue = 0;
+        CircuitPlayground.setPixelColor(2, red, green, blue);
+        CircuitPlayground.setPixelColor(3, red, green, blue);
+        CircuitPlayground.setPixelColor(4, 0, green, 0);
+        CircuitPlayground.setPixelColor(5, 0, green, 0);
+        CircuitPlayground.setPixelColor(6, red, green, blue);
+        CircuitPlayground.setPixelColor(7, red, green, blue);
     } else {
         // Red color - high intensity
+        CircuitPlayground.clearPixels();
         red = 255;
-        green = map(intensity, highThreshold, 40, 255, 0);  // Assuming max intensity is around 40
+        green = 0;
         blue = 0;
-    }
-
-    // Set Neopixel color based on intensity
-    for (int i = 0; i < 10; i++) {  // Assuming you want to set all pixels. Adjust as necessary.
-        CircuitPlayground.setPixelColor(i, red, green, blue);
+        CircuitPlayground.setPixelColor(0, red, green, blue);
+        CircuitPlayground.setPixelColor(1, red, green, blue);
+        CircuitPlayground.setPixelColor(2, 255, 255, blue);
+        CircuitPlayground.setPixelColor(3, 255, 255, blue);
+        CircuitPlayground.setPixelColor(4, 0, 255, 0);
+        CircuitPlayground.setPixelColor(5, 0, 255, 0);
+        CircuitPlayground.setPixelColor(6, 255, 255, blue);
+        CircuitPlayground.setPixelColor(7, 255, 255, blue);
+        CircuitPlayground.setPixelColor(8, red, green, blue);
+        CircuitPlayground.setPixelColor(9, red, green, blue);
     }
 }
