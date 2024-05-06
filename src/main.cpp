@@ -1,5 +1,5 @@
 // Embedded Challenge Spring 2024: The Tremor Challenge
-// Tanzia Nur, Greyson Diaz, Saad Bensalim
+// Tanzia Nur, Greyson Diaz, Saad Bensalim, Rayed Khan
 
 #include <ArduinoFFT.h>
 #include <Adafruit_CircuitPlayground.h>
@@ -11,7 +11,7 @@ const uint16_t samples = 128;
 const double samplingFreq = 50.0;
 const double dangerZoneIntensity = 60.0;
 const int sampleInterval = 2000;  // Interval for each sample set in milliseconds
-const int evaluationPeriod = 30 * 1000;  // Total period for evaluation in milliseconds
+const int evaluationPeriod = 5 * 60 * 1000;  // Total period for evaluation in milliseconds
 double vReal[samples], vImag[samples];
 unsigned int index = 0, sampleCount = 0, dangerCount = 0;
 unsigned long lastTime = 0, lastSampleSetTime = 0;
@@ -26,6 +26,11 @@ void performFFT();
 double analyzeFFT();
 void updateFeedback(double intensity);
 
+/*
+Sets up baud rate to 115200 and initialized stuff for
+the Circuit playground library. Sets the imaginary
+part of the vector to 0.
+*/
 void setup() {
     Serial.begin(115200);
     CircuitPlayground.begin();
@@ -38,9 +43,15 @@ void setup() {
 /*
 loop() handles the counting for the samples and "danger".
 All the samples are said to be within 3-6 Hz. If more
-than 60% than of the samples are said to be above the dangerZoneIntensity
-(intensity values) than the alarm will sounds. The samples are being collected
-and performFFT is also being called as well.
+than 60% than of the samples are said to be above the 
+dangerZoneIntensity (intensity values) than the alarm will sound. 
+
+The samples are being collected and performFFT is also called. 
+The intensity value is assigned to the analyzeFFT function output
+which should give the max intensity based off the magnitudes. The rest
+of the logic checks whether the entire evaluation time is over (5 minutes
+for a whole tremor), and whether the intensity is greater than the specified
+dangerZoneIntensity.
 */
 void loop() {
     handleButtonPress();  // Handle button interactions to start/stop device and toggle alarm
